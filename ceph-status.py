@@ -377,44 +377,37 @@ def main():
                 print cephstate.get_cluster_pools()   
                 sys.exit(0)
             if args.keys:
-                item1 = args.keys[0]
                 if len(args.keys) == 2:
-                    item2 = args.keys[1]
-                    if item1 == 'config':
-                        print cephstate.get_pool_config(poolname,item2)
-                    elif item1 == 'io':
-                        print cephstate.get_pool_io_rate(poolname,item2)
-                    elif item1 == 'df':
-                        print cephstate.get_pool_df(poolname,item2)
+                    if args.keys[0] == 'config':
+                        print cephstate.get_pool_config(poolname,args.keys[1])
+                    elif args.keys[0] == 'io':
+                        print cephstate.get_pool_io_rate(poolname,args.keys[1])
+                    elif args.keys[0] == 'df':
+                        print cephstate.get_pool_df(poolname,args.keys[1])
                 else:
                     pass
             sys.exit(0)
 
         if args.keys:
-            item1 = args.keys[0]
             if len(args.keys) == 2:
-                item2 = args.keys[1]
-                if item1 == 'osd':
-                    print cephstate.get_cluster_osd_state(item2)
-                elif item1 == 'pg':
-                    print cephstate.get_cluster_pgs_state(item2)
-                elif item1 == 'rados':
-                    print cephstate.get_cluster_throughput(item2)
-                elif item1 == 'rgw':
-                    print cephstate.get_rgw_bucket_stats(item2)
+                if args.keys[0] == 'osd':
+                    print cephstate.get_cluster_osd_state(args.keys[1])
+                elif args.keys[0] == 'pg':
+                    print cephstate.get_cluster_pgs_state(args.keys[1])
+                elif args.keys[0] == 'rados':
+                    print cephstate.get_cluster_throughput(args.keys[1])
+                elif args.keys[0] == 'rgw':
+                    print cephstate.get_rgw_bucket_stats(args.keys[1])
                 else:
                     print parser.print_help()
             else:
-                if item1 == 'mon':
+                ops_list = ['ops','rps','wps']
+                if args.keys[0] == 'mon':
                     print cephstate.get_cluster_active_mon()
-                elif item1 == 'health':
+                elif args.keys[0] == 'health':
                     print cephstate.get_cluster_health()
-                elif item1 == 'ops':
-                    print cephstate.get_cluster_total_ops('ops')
-                elif item1 == 'rps':
-                    print cephstate.get_cluster_total_ops('rps')
-                elif item1 == 'wps':
-                    print cephstate.get_cluster_total_ops('wps')
+                elif args.keys[0] in ops_list:
+                    print cephstate.get_cluster_total_ops(args.keys[0])
                 else:
                     print parser.print_help()
         else:
