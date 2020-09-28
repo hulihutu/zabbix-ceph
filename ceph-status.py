@@ -366,23 +366,23 @@ def main():
     parser.add_argument('-p','--poolname',nargs=1,dest='poolname',metavar=('{ pool_name }'),help='poolname')
     
     if len(sys.argv)==1:
-        print parser.print_help()
+        print(parser.print_help())
     else:
         args=parser.parse_args()
         cephstate = CephState()
         if args.poolname:
             poolname = args.poolname[0]
             if poolname in ["lists","list"]:
-                print cephstate.get_cluster_pools()   
+                print(cephstate.get_cluster_pools())
                 sys.exit(0)
             if args.keys:
                 if len(args.keys) == 2:
                     if args.keys[0] == 'config':
-                        print cephstate.get_pool_config(poolname,args.keys[1])
+                        print(cephstate.get_pool_config(poolname,args.keys[1]))
                     elif args.keys[0] == 'io':
-                        print cephstate.get_pool_io_rate(poolname,args.keys[1])
+                        print(cephstate.get_pool_io_rate(poolname,args.keys[1]))
                     elif args.keys[0] == 'df':
-                        print cephstate.get_pool_df(poolname,args.keys[1])
+                        print(cephstate.get_pool_df(poolname,args.keys[1]))
                 else:
                     pass
             sys.exit(0)
@@ -390,27 +390,27 @@ def main():
         if args.keys:
             if len(args.keys) == 2:
                 if args.keys[0] == 'osd':
-                    print cephstate.get_cluster_osd_state(args.keys[1])
+                    print(cephstate.get_cluster_osd_state(args.keys[1]))
                 elif args.keys[0] == 'pg':
-                    print cephstate.get_cluster_pgs_state(args.keys[1])
+                    print(cephstate.get_cluster_pgs_state(args.keys[1]))
                 elif args.keys[0] == 'rados':
-                    print cephstate.get_cluster_throughput(args.keys[1])
+                    print(cephstate.get_cluster_throughput(args.keys[1]))
                 elif args.keys[0] == 'rgw':
-                    print cephstate.get_rgw_bucket_stats(args.keys[1])
+                    print(cephstate.get_rgw_bucket_stats(args.keys[1]))
                 else:
-                    print parser.print_help()
+                    print(parser.print_help())
             else:
                 ops_list = ['ops','rps','wps']
                 if args.keys[0] == 'mon':
-                    print cephstate.get_cluster_active_mon()
+                    print(cephstate.get_cluster_active_mon())
                 elif args.keys[0] == 'health':
-                    print cephstate.get_cluster_health()
+                    print(cephstate.get_cluster_health())
                 elif args.keys[0] in ops_list:
-                    print cephstate.get_cluster_total_ops(args.keys[0])
+                    print(cephstate.get_cluster_total_ops(args.keys[0]))
                 else:
-                    print parser.print_help()
+                    print(parser.print_help())
         else:
-            print parser.print_help()
+            print(parser.print_help())
                   
 
 if __name__ == '__main__':
