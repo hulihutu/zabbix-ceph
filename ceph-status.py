@@ -32,7 +32,7 @@ class CephState(object):
             except Exception as e:
                 time.sleep(1)
         else:
-            raise Exception(e)
+            raise Exception("Failed to read file {}".format(filepath))
 
     def get_cluster_health(self):
         cluster_health = commands.getoutput('timeout 10 ceph health -f json-pretty 2>/dev/null')
