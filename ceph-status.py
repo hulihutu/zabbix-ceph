@@ -11,9 +11,6 @@ import argparse
 
 class CephState(object):
     def __init__(self):
-        self.cephstate_cmd = 'timeout 10 ceph -s -f json-pretty 2>/dev/null'
-   
-        #self.ceph_state_file = "/var/log/zabbix/ceph_status.json"        
         self.ceph_state_file = "/var/log/zabbix/ceph_status.json"
         self.ceph_df_file = "/var/log/zabbix/ceph_df.json"        
         self.ceph_pool_state_file = "/var/log/zabbix/ceph_pool_state.json"      
@@ -24,7 +21,7 @@ class CephState(object):
         :param filepath:
         :return:
         '''
-        for _ in range(3):
+        for i in range(3):
             try:
                 with open(filepath,'r') as f:
                     json_str = json.load(f)
@@ -63,10 +60,10 @@ class CephState(object):
             return json_str["osdmap"]['osdmap']['num_up_osds']
         elif arg == 'in':
             return json_str["osdmap"]['osdmap']['num_in_osds']
-        elif arg == 'ave_commit':
-            return self.get_cluster_latency('ave_commit')
-        elif arg == 'ave_apply':
-            return self.get_cluster_latency('ave_apply')
+        elif arg == 'max_commit':
+            return self.get_cluster_latency('max_commit')
+        elif arg == 'max_apply':
+            return self.get_cluster_latency('max_apply')
         else:
             return 0
 
@@ -77,7 +74,7 @@ class CephState(object):
 
         cluster_used = int(json_str["pgmap"]["bytes_used"])
         cluster_total = int(json_str["pgmap"]["bytes_total"])
-        return  "%.3f"   %(cluster_used/float(cluster_total)*100)
+        return  "%.3f"  %(cluster_used/float(cluster_total)*100)
 
     def get_cluster_pgs_state(self,arg):
         '''get cluster pg state
@@ -98,7 +95,6 @@ class CephState(object):
                    return pgs_state["count"]
             else:
                 return 0
-        #取包含了相应状态的PG数目。注意：取值方式未必严谨，此监控值仅供参考。
         else:
             count_list = [0]
             for pgs_state in json_str["pgmap"]["pgs_by_state"]:
@@ -107,97 +103,67 @@ class CephState(object):
             return max(count_list)
 
     def get_cluster_latency(self,arg):
-        '''get cluster average latency
+        '''get cluster max latency
         '''
-        if arg =="ave_commit":
-            osd_commit_list = []
-            get_cluster_latency_commit = commands.getoutput('timeout 10 ceph osd perf -f json-pretty 2>/dev/null')
-            json_str = json.loads(get_cluster_latency_commit)
 
-            for item in json_str["osd_perf_infos"]:
-                osd_commit_list.append(int(item["perf_stats"]["commit_latency_ms"]))
-            return sum(osd_commit_list)/len(osd_commit_list)
+        args_dict = {
+            "max_commit":"commit_latency_ms",
+            "max_apply":"apply_latency_ms"
+        }
 
-        if arg =="ave_apply":
-            osd_apply_list = []
-            get_cluster_latency_apply = commands.getoutput('timeout 10 ceph osd perf -f json-pretty 2>/dev/null')
-            json_str = json.loads(get_cluster_latency_apply)
+        if arg in args_dict:
+            get_cluster_latency = commands.getoutput('timeout 10 ceph osd perf -f json-pretty 2>/dev/null')
+            json_str = json.loads(get_cluster_latency)
 
-            for item in json_str["osd_perf_infos"]:
-                osd_apply_list.append(int(item["perf_stats"]["apply_latency_ms"]))
-            return sum(osd_apply_list)/len(osd_apply_list)
+            osd_perf_list = [int(item["perf_stats"][args_dict.get(arg)]) for item in json_str["osd_perf_infos"]]
+
+            return max(osd_perf_list)
+
 
     def get_cluster_throughput(self,arg):
         '''get cluster throughput write and read
         '''
         json_str = self.loadData(self.ceph_state_file)
 
-        if arg == "write":
-            if json_str["pgmap"].has_key("write_bytes_sec") == True:
-                return  json_str["pgmap"]["write_bytes_sec"]
-            else:
-                return 0
-        elif arg == "read":
-            if json_str["pgmap"].has_key("read_bytes_sec") == True:
-                return json_str["pgmap"]["read_bytes_sec"]
-            else:
-                return 0
-        else:
-            if json_str["pgmap"].has_key(arg) == True:
-                return  json_str["pgmap"][arg]
-            else:
-                return 0
+        val = json_str["pgmap"].get(arg,0)
+        return val
 
     def get_cluster_total_ops(self,arg):
         '''get cluster throughput write and read
         '''
-        ops_list =[]
-      
+
+        ops_dict = {
+            "rps":"read_op_per_sec",
+            "wps":"write_op_per_sec",
+            "pps":"promote_op_per_sec"
+        }
+
         json_str = self.loadData(self.ceph_state_file)
 
-        if json_str["pgmap"].has_key('write_op_per_sec') == True:
-            wps = json_str["pgmap"]["write_op_per_sec"]
-            ops_list.append(int(wps))
-        else:
-            wps = 0
-        if json_str["pgmap"].has_key('read_op_per_sec') == True:
-            rps = json_str["pgmap"]["read_op_per_sec"]
-            ops_list.append(int(rps))
-        else:
-            rps = 0
-        if json_str["pgmap"].has_key('promote_op_per_sec') == True:
-            pps = json_str["pgmap"]["promote_op_per_sec"]
-            ops_list.append(int(pps))
-        else:
-            pps = 0
-             
+
         if arg == "ops":
+            ops_list = [json_str["pgmap"].get(value, 0) for value in ops_dict.values()]
             return sum(ops_list)
-        elif arg == "rps":
-            return rps
-        elif arg == "wps":
-            return wps
+        elif arg in ops_dict:
+            ops = json_str["pgmap"].get(ops_dict.get(arg),0)
+            return ops
         else:
             return 0
 
     def get_cluster_total_pools(self):
-        cluster_total_pools = commands.getoutput('timeout 10 ceph osd lspools  -f json-pretty 2>/dev/null')
-        json_str = json.loads(cluster_total_pools)
-        return len(json_str)
+        json_str = self.loadData(self.ceph_df_file)
+        pool_lst = [ item['name'] for item in json_str["pools"] ]
+
+        return len(pool_lst)
 
     def get_cluster_pools(self):
         '''get all pool name
         '''
-        pool_list=[]
-        data_dic = {}
-        cluster_pools = commands.getoutput('timeout 10 ceph df -f json-pretty 2>/dev/null')
+        cluster_pools = commands.getoutput('timeout 10 ceph osd lspools  -f json-pretty 2>/dev/null')
         json_str=json.loads(cluster_pools)
-        for item in json_str["pools"]:
-            pool_dic = {}
-            pool_dic['{#POOLNAME}'] = str(item["name"])
-            pool_list.append(pool_dic)
-        data_dic['data'] = pool_list
-        return json.dumps(data_dic,indent=4,separators=(',', ':'))
+        pool_list = [{"{#POOLNAME}":str(item['poolname'])} for item in json_str]
+        return json.dumps({'data':pool_list},indent=4,separators=(',', ':'))
+
 
     def get_mds_subdirs(self):
         '''get all fs_sub_dir name
@@ -213,20 +179,13 @@ class CephState(object):
             return json.dumps({'data':[]},indent=4,separators=(',',':'))
 
     def get_host_osds(self):
-        try:
-            osd_list=[]
-            data_dic={}
-            osds=[]
-            host_osds = commands.getoutput("mount|grep osd|awk '{print $3}'|cut -f2 -d - 2>/dev/null")
-            host_osds = host_osds.splitlines()
-            for osd in host_osds:
-                osd_dic = {}
-                osd_dic['{#OSD}'] = str(osd)
-                osd_list.append(osd_dic)
-            data_dic['data'] = osd_list
-            return json.dumps(data_dic,separators=(',', ':'))
-        except:
-            return json.dumps({'data':[]},indent=4,separators=(',',':'))
+        '''get all osd
+        '''
+        args = "mount|grep osd|awk '{print $3}'|cut -f2 -d - 2>/dev/null"
+        t = subprocess.Popen(args, shell=True, stdout=subprocess.PIPE).communicate()[0]
+        osds = [{'{#OSD}': osd} for osd in t.split('\n') if len(osd) != 0]
+        return json.dumps({'data': osds}, indent=4, separators=(',', ':'))
+
 
     def get_osd_mem_virt(self,osd,memtype):
         pidfile="/var/run/ceph/osd.{0}.pid".format(osd)
@@ -255,62 +214,24 @@ class CephState(object):
         if not poolname in pool_lst:
             raise Exception("Error ENOENT: unrecognized pool {0}".format(poolname))
 
-        if arg == "used":
-            for item in json_str["pools"]:
-                if item["name"] == poolname:
-                    return item["stats"]["bytes_used"]
-        else:
-            for item in json_str["pools"]:
-                if item["name"] == poolname:
-                    return item["stats"][arg]
-
-
+        for item in json_str["pools"]:
+            if item["name"] == poolname:
+                return item["stats"][arg]
 
     def get_pool_io_rate(self,poolname,stats):
         '''get every pool throughput,ops
         '''
         json_str = self.loadData(self.ceph_pool_state_file)
-        if stats == "write":
-            for item in json_str:
-                if item["pool_name"] == poolname:
-                    if item["client_io_rate"].has_key('write_bytes_sec') == True:
-                        return  item["client_io_rate"]["write_bytes_sec"]
-                    else:
-                        return 0
-        elif stats == "read":
-            for item in json_str:
-                if item["pool_name"] == poolname:
-                    if item["client_io_rate"].has_key('read_bytes_sec') == True:
-                        return item["client_io_rate"]["read_bytes_sec"]
-                    else:
-                        return 0
-        elif stats == "op_write":
-            for item in json_str:
-                if item["pool_name"] == poolname:
-                    if item["client_io_rate"].has_key('write_op_per_sec') == True:
-                        return item["client_io_rate"]["write_op_per_sec"]
-                    else:
-                        return 0
-        elif stats == "op_read":
-            for item in json_str:
-                if item["pool_name"] == poolname:
-                    if item["client_io_rate"].has_key('read_op_per_sec') == True:
-                        return item["client_io_rate"]["read_op_per_sec"]
-                    else:
-                        return 0
-        else:
-            for item in json_str:
-                if item["pool_name"] == poolname:
-                    if item["client_io_rate"].has_key(stats) == True:
-                        return item["client_io_rate"][stats]
-                    else:
-                        return 0
+
+        for item in json_str:
+            if item["pool_name"] == poolname:
+                return item["client_io_rate"].get(stats,0)
 
     def get_pool_config(self,poolname,config):
         '''get cluster pool config
         '''
         if config == "id":
-            pool_id = commands.getoutput("timeout 10 ceph   osd pool get {0} size -f json-pretty 2>/dev/null".format(poolname))
+            pool_id = commands.getoutput("timeout 10 ceph  osd pool get {0} size -f json-pretty 2>/dev/null".format(poolname))
             json_str = json.loads(pool_id)
             return json_str["pool_id"]
         else:
