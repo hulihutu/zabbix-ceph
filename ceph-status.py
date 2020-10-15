@@ -85,14 +85,12 @@ class CephState(object):
             return jsonout["pgmap"]["num_pgs"]
         elif arg == 'active':
             for pgs_state in jsonout["pgmap"]["pgs_by_state"]:
-               if pgs_state["state_name"] == 'active+clean':
-                   return pgs_state["count"]
+                return pgs_state["count"] if pgs_state["state_name"] == 'active+clean'
             else:
                 return 0
         elif arg == 'peering':
             for pgs_state in jsonout["pgmap"]["pgs_by_state"]:
-               if "peering" in pgs_state["state_name"]:
-                   return pgs_state["count"]
+                return pgs_state["count"] if "peering" in pgs_state["state_name"]
             else:
                 return 0
         else:
@@ -132,7 +130,7 @@ class CephState(object):
         '''get cluster throughput write and read
         '''
 
-        ops_dict = {
+        stats_to_fetch = {
             "rps":"read_op_per_sec",
             "wps":"write_op_per_sec",
             "pps":"promote_op_per_sec"
@@ -142,10 +140,10 @@ class CephState(object):
 
 
         if arg == "ops":
-            ops_list = [jsonout["pgmap"].get(value, 0) for value in ops_dict.values()]
+            ops_list = [jsonout["pgmap"].get(value, 0) for value in stats_to_fetch.values()]
             return sum(ops_list)
-        elif arg in ops_dict:
-            ops = jsonout["pgmap"].get(ops_dict.get(arg),0)
+        elif arg in stats_to_fetch:
+            ops = jsonout["pgmap"].get(stats_to_fetch.get(arg),0)
             return ops
         else:
             return 0
@@ -210,13 +208,14 @@ class CephState(object):
     def get_pool_df(self,poolname,arg):
         jsonout = self.loadData(self.ceph_df_file)
 
-        pool_lst = [ item['name'] for item in jsonout["pools"] ]
-        if not poolname in pool_lst:
-            raise Exception("Error ENOENT: unrecognized pool {0}".format(poolname))
+        # pool_lst = [ item['name'] for item in jsonout["pools"] ]
+        # if not poolname in pool_lst:
+        #     raise Exception("Error ENOENT: unrecognized pool {0}".format(poolname))
 
         for item in jsonout["pools"]:
-            if item["name"] == poolname:
-                return item["stats"][arg]
+            return item["stats"][arg] if item["name"] == poolname
+        else:
+            raise Exception("Error ENOENT: unrecognized pool {0}".format(poolname))
 
     def get_pool_io_rate(self,poolname,stats):
         '''get every pool throughput,ops
@@ -224,8 +223,7 @@ class CephState(object):
         jsonout = self.loadData(self.ceph_pool_state_file)
 
         for item in jsonout:
-            if item["pool_name"] == poolname:
-                return item["client_io_rate"].get(stats,0)
+            return item["client_io_rate"].get(stats,0) if item["pool_name"] == poolname
 
     def get_pool_config(self,poolname,config):
         '''get cluster pool config
@@ -244,17 +242,18 @@ class CephState(object):
         '''
         jsonout = self.loadData(self.ceph_rgw_bucket_state_file)
 
+        stats_to_fetch = {
+            "max_shard":"objects_per_shard",
+            "max_bucket":"num_objects"
+        }
+
+        if not config in stats_to_fetch:
+            return "Invalid command: {} not!".format(config)
+
         count_list = []
-        if config == 'max_shard':
-            arg = 'objects_per_shard'
-        elif config == 'max_bucket':
-            arg = 'num_objects'
-        else:
-            return "Wrong parameter!"
         for check in jsonout:
             for bucket_data in check['buckets']:
-                count_list.append(bucket_data[arg])
-
+                count_list.append(bucket_data[stats_to_fetch[config]])
         return max(count_list)
 
     def get_fsdir_config(self,fsdir_name,config):
