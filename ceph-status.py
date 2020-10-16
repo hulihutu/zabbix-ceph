@@ -85,12 +85,14 @@ class CephState(object):
             return jsonout["pgmap"]["num_pgs"]
         elif arg == 'active':
             for pgs_state in jsonout["pgmap"]["pgs_by_state"]:
-                return pgs_state["count"] if pgs_state["state_name"] == 'active+clean'
+                if pgs_state["state_name"] == 'active+clean':
+                    return pgs_state["count"]
             else:
                 return 0
         elif arg == 'peering':
             for pgs_state in jsonout["pgmap"]["pgs_by_state"]:
-                return pgs_state["count"] if "peering" in pgs_state["state_name"]
+                if "peering" in pgs_state["state_name"]:
+                    return pgs_state["count"]
             else:
                 return 0
         else:
@@ -213,7 +215,8 @@ class CephState(object):
         #     raise Exception("Error ENOENT: unrecognized pool {0}".format(poolname))
 
         for item in jsonout["pools"]:
-            return item["stats"][arg] if item["name"] == poolname
+            if item["name"] == poolname:
+                return item["stats"][arg]
         else:
             raise Exception("Error ENOENT: unrecognized pool {0}".format(poolname))
 
@@ -223,7 +226,8 @@ class CephState(object):
         jsonout = self.loadData(self.ceph_pool_state_file)
 
         for item in jsonout:
-            return item["client_io_rate"].get(stats,0) if item["pool_name"] == poolname
+            if item["pool_name"] == poolname:
+                return item["client_io_rate"].get(stats, 0)
 
     def get_pool_config(self,poolname,config):
         '''get cluster pool config
@@ -272,7 +276,8 @@ class CephState(object):
             args = 'timeout 10 /usr/bin/getfattr -d -m ceph.dir.rbytes {0} |grep "ceph.dir.rbytes"| grep -o "[0-9]*"'.format(fsdir_name)
             p = subprocess.Popen(args, shell=True, cwd=rootdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
 
-            return p[0].strip('\n') if p[0] else None
+            value =  p[0].strip('\n') if p[0] else None
+            return value
 
 def main():
     parser = argparse.ArgumentParser(description='ceph state', usage='%(prog)s [options]')
