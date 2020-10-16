@@ -111,6 +111,7 @@ class CephState(object):
             "max_apply":"apply_latency_ms"
         }
 
+        #test
         if arg in stats_to_fetch:
             get_cluster_latency = commands.getoutput('timeout 10 ceph osd perf -f json-pretty 2>/dev/null')
             jsonout = json.loads(get_cluster_latency)
