@@ -236,10 +236,13 @@ class CephState(object):
             jsonout = json.loads(pool_id)
             return jsonout["pool_id"]
         else:
-            pool_cmd = commands.getoutput(
-                "timeout 10 ceph osd pool get {0} {1} -f json-pretty 2>/dev/null".format(poolname, config))
-            jsonout = json.loads(pool_cmd)
-            return jsonout[config]
+            try:
+                pool_cmd = commands.getoutput(
+                    "timeout 10 ceph osd pool get {0} {1} -f json-pretty 2>/dev/null".format(poolname, config))
+                jsonout = json.loads(pool_cmd)
+                return jsonout[config]
+            except ValueError:
+                raise Exception('Error EINVAL: invalid command')
 
     def get_rgw_bucket_stats(self, config):
         '''get cluster rgw bucket stats
